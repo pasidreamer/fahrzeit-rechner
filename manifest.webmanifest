@@ -1,0 +1,17 @@
+{
+  "name": "Fahrzeit-Rechner",
+  "short_name": "Fahrzeit",
+  "description": "Arbeitszeit und Fahrzeit für das ganze Team ausrechnen.",
+  "lang": "de-CH",
+  "id": "/fahrzeit-rechner/",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f2f4f7",
+  "theme_color": "#0f5c8c",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0f5c8c">
+<title>Fahrzeit-Rechner</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<style>
+  :root {
+    --bg: #f2f4f7;
+    --card: #ffffff;
+    --text: #17202a;
+    --muted: #5d6b7a;
+    --line: #d5dce4;
+    --accent: #0f5c8c;
+    --accent-text: #ffffff;
+    --work: #1e7d4f;
+    --drive: #b8610b;
+    --error: #b3261e;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #11161c;
+      --card: #1b222b;
+      --text: #e8edf2;
+      --muted: #9aa8b6;
+      --line: #313c49;
+      --accent: #4aa3d8;
+      --accent-text: #08131b;
+      --work: #5fcf96;
+      --drive: #f0a651;
+      --error: #ff8a80;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 16px;
+    background: var(--bg);
+    color: var(--text);
+    font: 17px/1.4 system-ui, "Segoe UI", Roboto, sans-serif;
+  }
+  main { max-width: 520px; margin: 0 auto; }
+  h1 { font-size: 1.4rem; margin: 8px 0 16px; }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 16px;
+    margin-bottom: 16px;
+  }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .field { margin-bottom: 14px; }
+  .field:last-child { margin-bottom: 0; }
+  label, .label { display: block; font-size: .85rem; color: var(--muted); margin-bottom: 4px; }
+  .hint { font-size: .8rem; color: var(--muted); margin-top: 4px; }
+  input {
+    width: 100%;
+    height: 52px;
+    padding: 0 12px;
+    font: inherit;
+    font-size: 1.2rem;
+    font-variant-numeric: tabular-nums;
+    color: var(--text);
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+  }
+  input:focus, button:focus-visible { outline: 3px solid var(--accent); outline-offset: 1px; }
+  .unit { position: relative; }
+  .unit input { padding-right: 52px; }
+  .unit span {
+    position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+    color: var(--muted); font-size: .9rem; pointer-events: none;
+  }
+  .stepper { display: grid; grid-template-columns: 52px 1fr 52px; gap: 8px; }
+  .stepper input { text-align: center; }
+  button {
+    height: 52px;
+    font: inherit;
+    font-weight: 600;
+    border-radius: 10px;
+    border: 1px solid var(--line);
+    background: var(--bg);
+    color: var(--text);
+    cursor: pointer;
+  }
+  .stepper button { font-size: 1.5rem; }
+  button.primary { width: 100%; background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
+  button.plain { width: 100%; margin-top: 8px; color: var(--muted); }
+  .result { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+  .big {
+    border-radius: 12px;
+    padding: 12px;
+    border: 2px solid currentColor;
+  }
+  .big.work { color: var(--work); }
+  .big.drive { color: var(--drive); }
+  .big .name { font-size: .85rem; font-weight: 600; }
+  .big .value { font-size: 2rem; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.15; }
+  .big .dec { font-size: .85rem; color: var(--muted); }
+  table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+  td { padding: 6px 0; border-top: 1px solid var(--line); }
+  td:last-child { text-align: right; font-weight: 600; }
+  .error { color: var(--error); font-weight: 600; margin: 0; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Fahrzeit-Rechner</h1>
+
+  <div class="card">
+    <div class="row field">
+      <div>
+        <label for="start">Beginn</label>
+        <input type="time" id="start" value="07:00">
+      </div>
+      <div>
+        <label for="end">Ende</label>
+        <input type="time" id="end" value="17:00">
+      </div>
+    </div>
+
+    <div class="field">
+      <span class="label">Fahrzeit zum Kunden (ein Weg)</span>
+      <div class="row">
+        <div class="unit"><input type="number" id="driveH" inputmode="numeric" min="0" max="23" value="1" aria-label="Fahrzeit Stunden"><span>Std</span></div>
+        <div class="unit"><input type="number" id="driveM" inputmode="numeric" min="0" max="59" value="30" aria-label="Fahrzeit Minuten"><span>Min</span></div>
+      </div>
+      <div class="hint">Hin- und Rückweg werden automatisch gerechnet (× 2).</div>
+    </div>
+
+    <div class="field">
+      <label for="pause">Pause (wird abgezogen, falls nötig)</label>
+      <div class="unit"><input type="number" id="pause" inputmode="numeric" min="0" value="0"><span>Min</span></div>
+    </div>
+
+    <div class="field">
+      <label for="people">Anzahl Personen</label>
+      <div class="stepper">
+        <button type="button" id="minus" aria-label="Eine Person weniger">−</button>
+        <input type="number" id="people" inputmode="numeric" min="1" value="4">
+        <button type="button" id="plus" aria-label="Eine Person mehr">+</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <p class="error" id="error" hidden></p>
+    <div id="out">
+      <div class="result">
+        <div class="big work">
+          <div class="name">Arbeitszeit total</div>
+          <div class="value" id="workTotal"></div>
+          <div class="dec" id="workTotalDec"></div>
+        </div>
+        <div class="big drive">
+          <div class="name">Fahrzeit total</div>
+          <div class="value" id="driveTotal"></div>
+          <div class="dec" id="driveTotalDec"></div>
+        </div>
+      </div>
+      <table>
+        <tr><td>Arbeitszeit pro Person</td><td id="workOne"></td></tr>
+        <tr><td>Fahrzeit pro Person (hin + zurück)</td><td id="driveOne"></td></tr>
+        <tr><td>Anwesenheit pro Person</td><td id="spanOne"></td></tr>
+        <tr><td>Stunden total (alle Personen)</td><td id="allTotal"></td></tr>
+      </table>
+      <button type="button" class="primary" id="copy" style="margin-top:14px">Ergebnis kopieren</button>
+    </div>
+    <button type="button" class="plain" id="reset">Zurücksetzen</button>
+  </div>
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+const fields = ['start', 'end', 'driveH', 'driveM', 'pause', 'people'];
+const defaults = { start: '07:00', end: '17:00', driveH: '1', driveM: '30', pause: '0', people: '4' };
+const STORE = 'fahrzeit-rechner';
+
+// Minuten -> "7:00 h"
+const hm = min => Math.floor(min / 60) + ':' + String(min % 60).padStart(2, '0') + ' h';
+// Minuten -> "7,00 Std." (Dezimalstunden)
+const dec = min => (min / 60).toFixed(2).replace('.', ',') + ' Std.';
+const num = id => Math.max(0, parseInt($(id).value, 10) || 0);
+const clock = id => {
+  const m = /^(\d{1,2}):(\d{2})/.exec($(id).value);
+  return m ? m[1] * 60 + +m[2] : null;
+};
+
+let summary = '';
+
+function calc() {
+  const start = clock('start'), end = clock('end');
+  const people = Math.max(1, num('people'));
+  const driveOne = (num('driveH') * 60 + num('driveM')) * 2;
+  const pause = num('pause');
+
+  let error = '';
+  let span = 0, workOne = 0;
+  if (start === null || end === null) {
+    error = 'Bitte Beginn und Ende eintragen.';
+  } else if (end <= start) {
+    error = 'Das Ende muss nach dem Beginn liegen.';
+  } else {
+    span = end - start;
+    workOne = span - pause - driveOne;
+    if (workOne < 0) error = 'Fahrzeit und Pause sind zusammen länger als die gesamte Zeit.';
+  }
+
+  $('error').hidden = !error;
+  $('error').textContent = error;
+  $('out').hidden = !!error;
+  if (error) return;
+
+  const workTotal = workOne * people, driveTotal = driveOne * people;
+  $('workTotal').textContent = hm(workTotal);
+  $('workTotalDec').textContent = dec(workTotal);
+  $('driveTotal').textContent = hm(driveTotal);
+  $('driveTotalDec').textContent = dec(driveTotal);
+  $('workOne').textContent = hm(workOne);
+  $('driveOne').textContent = hm(driveOne);
+  $('spanOne').textContent = hm(span) + (pause ? ' (inkl. ' + pause + ' Min Pause)' : '');
+  $('allTotal').textContent = hm(workTotal + driveTotal);
+
+  summary =
+    people + (people === 1 ? ' Person' : ' Personen') + ', ' + $('start').value + '–' + $('end').value + ' Uhr' +
+    (pause ? ', ' + pause + ' Min Pause' : '') + '\n' +
+    'Arbeitszeit total: ' + hm(workTotal) + ' (' + hm(workOne) + ' pro Person)\n' +
+    'Fahrzeit total: ' + hm(driveTotal) + ' (' + hm(driveOne) + ' pro Person, hin + zurück)';
+}
+
+function save() {
+  try {
+    localStorage.setItem(STORE, JSON.stringify(Object.fromEntries(fields.map(f => [f, $(f).value]))));
+  } catch (e) {}
+}
+
+function load(values) {
+  fields.forEach(f => { if (values[f] != null) $(f).value = values[f]; });
+}
+
+try { load(JSON.parse(localStorage.getItem(STORE)) || {}); } catch (e) {}
+
+fields.forEach(f => $(f).addEventListener('input', () => { calc(); save(); }));
+
+const step = d => {
+  $('people').value = Math.max(1, num('people') + d);
+  calc(); save();
+};
+$('minus').addEventListener('click', () => step(-1));
+$('plus').addEventListener('click', () => step(1));
+
+$('reset').addEventListener('click', () => { load(defaults); calc(); save(); });
+
+$('copy').addEventListener('click', async () => {
+  const btn = $('copy');
+  try {
+    await navigator.clipboard.writeText(summary);
+    btn.textContent = 'Kopiert ✓';
+  } catch (e) {
+    btn.textContent = 'Kopieren nicht möglich';
+  }
+  setTimeout(() => { btn.textContent = 'Ergebnis kopieren'; }, 1500);
+});
+
+calc();
+
+if ('serviceWorker' in navigator && location.protocol === 'https:') {
+  navigator.serviceWorker.register('sw.js').catch(e => console.warn('Service Worker', e));
+}
+</script>
+</body>
+</html>
