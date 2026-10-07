@@ -52,6 +52,9 @@
     padding: 16px;
     margin-bottom: 16px;
   }
+  .dayhead { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+  .dayhead h2 { font-size: 1.1rem; margin: 0; }
+  .dayhead button { height: 40px; padding: 0 12px; font-weight: 400; font-size: .9rem; color: var(--muted); }
   .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
   .field { margin-bottom: 14px; }
   .field:last-child { margin-bottom: 0; }
@@ -91,6 +94,7 @@
   .stepper button { font-size: 1.5rem; }
   button.primary { width: 100%; background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
   button.plain { width: 100%; margin-top: 8px; color: var(--muted); }
+  button.add { width: 100%; margin-bottom: 16px; background: var(--card); border-style: dashed; }
   .result { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
   .big {
     border-radius: 12px;
@@ -103,8 +107,12 @@
   .big .value { font-size: 2rem; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.15; }
   .big .dec { font-size: .85rem; color: var(--muted); }
   table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
-  td { padding: 6px 0; border-top: 1px solid var(--line); }
-  td:last-child { text-align: right; font-weight: 600; }
+  th { font-size: .8rem; font-weight: 400; color: var(--muted); text-align: right; padding: 4px 0; }
+  th:first-child { text-align: left; }
+  td { padding: 6px 0; border-top: 1px solid var(--line); vertical-align: top; }
+  td + td { text-align: right; font-weight: 600; padding-left: 10px; white-space: nowrap; }
+  td small { display: block; font-weight: 400; color: var(--muted); font-size: .8rem; }
+  tr.sum td { border-top: 2px solid var(--text); font-weight: 700; }
   .error { color: var(--error); font-weight: 600; margin: 0; }
   [hidden] { display: none !important; }
 </style>
@@ -113,41 +121,8 @@
 <main>
   <h1>Fahrzeit-Rechner</h1>
 
-  <div class="card">
-    <div class="row field">
-      <div>
-        <label for="start">Beginn</label>
-        <input type="time" id="start" value="07:00">
-      </div>
-      <div>
-        <label for="end">Ende</label>
-        <input type="time" id="end" value="17:00">
-      </div>
-    </div>
-
-    <div class="field">
-      <span class="label">Fahrzeit zum Kunden (ein Weg)</span>
-      <div class="row">
-        <div class="unit"><input type="number" id="driveH" inputmode="numeric" min="0" max="23" value="1" aria-label="Fahrzeit Stunden"><span>Std</span></div>
-        <div class="unit"><input type="number" id="driveM" inputmode="numeric" min="0" max="59" value="30" aria-label="Fahrzeit Minuten"><span>Min</span></div>
-      </div>
-      <div class="hint">Hin- und Rückweg werden automatisch gerechnet (× 2).</div>
-    </div>
-
-    <div class="field">
-      <label for="pause">Pause (wird abgezogen, falls nötig)</label>
-      <div class="unit"><input type="number" id="pause" inputmode="numeric" min="0" value="0"><span>Min</span></div>
-    </div>
-
-    <div class="field">
-      <label for="people">Anzahl Personen</label>
-      <div class="stepper">
-        <button type="button" id="minus" aria-label="Eine Person weniger">−</button>
-        <input type="number" id="people" inputmode="numeric" min="1" value="4">
-        <button type="button" id="plus" aria-label="Eine Person mehr">+</button>
-      </div>
-    </div>
-  </div>
+  <div id="days"></div>
+  <button type="button" class="add" id="add">+ Tag hinzufügen</button>
 
   <div class="card">
     <p class="error" id="error" hidden></p>
@@ -164,17 +139,52 @@
           <div class="dec" id="driveTotalDec"></div>
         </div>
       </div>
-      <table>
-        <tr><td>Arbeitszeit pro Person</td><td id="workOne"></td></tr>
-        <tr><td>Fahrzeit pro Person (hin + zurück)</td><td id="driveOne"></td></tr>
-        <tr><td>Anwesenheit pro Person</td><td id="spanOne"></td></tr>
-        <tr><td>Stunden total (alle Personen)</td><td id="allTotal"></td></tr>
-      </table>
+      <table id="detail"></table>
       <button type="button" class="primary" id="copy" style="margin-top:14px">Ergebnis kopieren</button>
     </div>
     <button type="button" class="plain" id="reset">Zurücksetzen</button>
   </div>
 </main>
+
+<template id="dayTpl">
+  <div class="card day">
+    <div class="dayhead">
+      <h2></h2>
+      <button type="button" data-act="remove">Tag entfernen</button>
+    </div>
+    <div class="row field">
+      <div>
+        <label>Beginn<input type="time" data-f="start"></label>
+      </div>
+      <div>
+        <label>Ende<input type="time" data-f="end"></label>
+      </div>
+    </div>
+
+    <div class="field">
+      <span class="label">Fahrzeit zum Kunden (ein Weg)</span>
+      <div class="row">
+        <div class="unit"><input type="number" data-f="driveH" inputmode="numeric" min="0" max="23" aria-label="Fahrzeit Stunden"><span>Std</span></div>
+        <div class="unit"><input type="number" data-f="driveM" inputmode="numeric" min="0" max="59" aria-label="Fahrzeit Minuten"><span>Min</span></div>
+      </div>
+      <div class="hint">Hin- und Rückweg werden automatisch gerechnet (× 2).</div>
+    </div>
+
+    <div class="field">
+      <span class="label">Pause (wird abgezogen, falls nötig)</span>
+      <div class="unit"><input type="number" data-f="pause" inputmode="numeric" min="0" aria-label="Pause in Minuten"><span>Min</span></div>
+    </div>
+
+    <div class="field">
+      <span class="label">Anzahl Personen</span>
+      <div class="stepper">
+        <button type="button" data-act="minus" aria-label="Eine Person weniger">−</button>
+        <input type="number" data-f="people" inputmode="numeric" min="1" aria-label="Anzahl Personen">
+        <button type="button" data-act="plus" aria-label="Eine Person mehr">+</button>
+      </div>
+    </div>
+  </div>
+</template>
 
 <script>
 const $ = id => document.getElementById(id);
@@ -186,76 +196,134 @@ const STORE = 'fahrzeit-rechner';
 const hm = min => Math.floor(min / 60) + ':' + String(min % 60).padStart(2, '0') + ' h';
 // Minuten -> "7,00 Std." (Dezimalstunden)
 const dec = min => (min / 60).toFixed(2).replace('.', ',') + ' Std.';
-const num = id => Math.max(0, parseInt($(id).value, 10) || 0);
-const clock = id => {
-  const m = /^(\d{1,2}):(\d{2})/.exec($(id).value);
+const num = v => Math.max(0, parseInt(v, 10) || 0);
+const clock = v => {
+  const m = /^(\d{1,2}):(\d{2})/.exec(v || '');
   return m ? m[1] * 60 + +m[2] : null;
 };
+const persons = n => n + (n === 1 ? ' Person' : ' Personen');
 
+let days = [{ ...defaults }];
 let summary = '';
 
-function calc() {
-  const start = clock('start'), end = clock('end');
-  const people = Math.max(1, num('people'));
-  const driveOne = (num('driveH') * 60 + num('driveM')) * 2;
-  const pause = num('pause');
+// Rechnet einen Tag aus; bei ungültigen Eingaben steht der Grund in .error
+function calcDay(d) {
+  const start = clock(d.start), end = clock(d.end);
+  const people = Math.max(1, num(d.people));
+  const driveOne = (num(d.driveH) * 60 + num(d.driveM)) * 2;
+  const pause = num(d.pause);
+  if (start === null || end === null) return { error: 'Bitte Beginn und Ende eintragen.' };
+  if (end <= start) return { error: 'Das Ende muss nach dem Beginn liegen.' };
+  const span = end - start;
+  const workOne = span - pause - driveOne;
+  if (workOne < 0) return { error: 'Fahrzeit und Pause sind zusammen länger als die gesamte Zeit.' };
+  return { people, pause, span, workOne, driveOne, work: workOne * people, drive: driveOne * people };
+}
 
-  let error = '';
-  let span = 0, workOne = 0;
-  if (start === null || end === null) {
-    error = 'Bitte Beginn und Ende eintragen.';
-  } else if (end <= start) {
-    error = 'Das Ende muss nach dem Beginn liegen.';
-  } else {
-    span = end - start;
-    workOne = span - pause - driveOne;
-    if (workOne < 0) error = 'Fahrzeit und Pause sind zusammen länger als die gesamte Zeit.';
+function calc() {
+  const res = days.map(calcDay);
+  const many = days.length > 1;
+  const bad = res.findIndex(r => r.error);
+
+  $('error').hidden = bad < 0;
+  $('out').hidden = bad >= 0;
+  if (bad >= 0) {
+    $('error').textContent = (many ? 'Tag ' + (bad + 1) + ': ' : '') + res[bad].error;
+    return;
   }
 
-  $('error').hidden = !error;
-  $('error').textContent = error;
-  $('out').hidden = !!error;
-  if (error) return;
+  const work = res.reduce((s, r) => s + r.work, 0);
+  const drive = res.reduce((s, r) => s + r.drive, 0);
+  $('workTotal').textContent = hm(work);
+  $('workTotalDec').textContent = dec(work);
+  $('driveTotal').textContent = hm(drive);
+  $('driveTotalDec').textContent = dec(drive);
 
-  const workTotal = workOne * people, driveTotal = driveOne * people;
-  $('workTotal').textContent = hm(workTotal);
-  $('workTotalDec').textContent = dec(workTotal);
-  $('driveTotal').textContent = hm(driveTotal);
-  $('driveTotalDec').textContent = dec(driveTotal);
-  $('workOne').textContent = hm(workOne);
-  $('driveOne').textContent = hm(driveOne);
-  $('spanOne').textContent = hm(span) + (pause ? ' (inkl. ' + pause + ' Min Pause)' : '');
-  $('allTotal').textContent = hm(workTotal + driveTotal);
+  const rows = [];
+  if (many) {
+    rows.push('<tr><th></th><th>Arbeit</th><th>Fahrt</th></tr>');
+    res.forEach((r, i) => rows.push(
+      '<tr><td>Tag ' + (i + 1) + '<small>' + persons(r.people) + ' · je ' + hm(r.workOne) + ' Arbeit, ' + hm(r.driveOne) + ' Fahrt</small></td>' +
+      '<td>' + hm(r.work) + '</td><td>' + hm(r.drive) + '</td></tr>'));
+    rows.push('<tr class="sum"><td>Total</td><td>' + hm(work) + '</td><td>' + hm(drive) + '</td></tr>');
+    rows.push('<tr><td>Stunden total (Arbeit + Fahrt)</td><td colspan="2">' + hm(work + drive) + '</td></tr>');
+  } else {
+    const r = res[0];
+    rows.push('<tr><td>Arbeitszeit pro Person</td><td>' + hm(r.workOne) + '</td></tr>');
+    rows.push('<tr><td>Fahrzeit pro Person (hin + zurück)</td><td>' + hm(r.driveOne) + '</td></tr>');
+    rows.push('<tr><td>Anwesenheit pro Person</td><td>' + hm(r.span) + (r.pause ? ' (inkl. ' + r.pause + ' Min Pause)' : '') + '</td></tr>');
+    rows.push('<tr><td>Stunden total (alle Personen)</td><td>' + hm(work + drive) + '</td></tr>');
+  }
+  $('detail').innerHTML = rows.join('');
 
-  summary =
-    people + (people === 1 ? ' Person' : ' Personen') + ', ' + $('start').value + '–' + $('end').value + ' Uhr' +
-    (pause ? ', ' + pause + ' Min Pause' : '') + '\n' +
-    'Arbeitszeit total: ' + hm(workTotal) + ' (' + hm(workOne) + ' pro Person)\n' +
-    'Fahrzeit total: ' + hm(driveTotal) + ' (' + hm(driveOne) + ' pro Person, hin + zurück)';
+  const head = (d, r) => persons(r.people) + ', ' + d.start + '–' + d.end + ' Uhr' + (r.pause ? ', ' + r.pause + ' Min Pause' : '');
+  if (many) {
+    summary = res.map((r, i) =>
+      'Tag ' + (i + 1) + ': ' + head(days[i], r) + ' – Arbeitszeit ' + hm(r.work) + ', Fahrzeit ' + hm(r.drive)).join('\n') +
+      '\nTotal ' + days.length + ' Tage: Arbeitszeit ' + hm(work) + ', Fahrzeit ' + hm(drive);
+  } else {
+    const r = res[0];
+    summary = head(days[0], r) + '\n' +
+      'Arbeitszeit total: ' + hm(r.work) + ' (' + hm(r.workOne) + ' pro Person)\n' +
+      'Fahrzeit total: ' + hm(r.drive) + ' (' + hm(r.driveOne) + ' pro Person, hin + zurück)';
+  }
+}
+
+function render() {
+  const box = $('days');
+  box.textContent = '';
+  days.forEach((d, i) => {
+    const card = $('dayTpl').content.firstElementChild.cloneNode(true);
+    card.dataset.i = i;
+    card.querySelector('h2').textContent = 'Tag ' + (i + 1);
+    card.querySelector('.dayhead').hidden = days.length < 2;
+    fields.forEach(f => { card.querySelector('[data-f="' + f + '"]').value = d[f]; });
+    box.appendChild(card);
+  });
+  calc();
 }
 
 function save() {
-  try {
-    localStorage.setItem(STORE, JSON.stringify(Object.fromEntries(fields.map(f => [f, $(f).value]))));
-  } catch (e) {}
+  try { localStorage.setItem(STORE, JSON.stringify({ days })); } catch (e) {}
 }
 
-function load(values) {
-  fields.forEach(f => { if (values[f] != null) $(f).value = values[f]; });
-}
+try {
+  const s = JSON.parse(localStorage.getItem(STORE)) || {};
+  // Ältere Version speicherte nur einen Tag direkt
+  const list = Array.isArray(s.days) ? s.days : (s.start ? [s] : []);
+  if (list.length) days = list.map(d => ({ ...defaults, ...d }));
+} catch (e) {}
 
-try { load(JSON.parse(localStorage.getItem(STORE)) || {}); } catch (e) {}
-
-fields.forEach(f => $(f).addEventListener('input', () => { calc(); save(); }));
-
-const step = d => {
-  $('people').value = Math.max(1, num('people') + d);
+$('days').addEventListener('input', e => {
+  const f = e.target.dataset.f;
+  if (!f) return;
+  days[e.target.closest('.day').dataset.i][f] = e.target.value;
   calc(); save();
-};
-$('minus').addEventListener('click', () => step(-1));
-$('plus').addEventListener('click', () => step(1));
+});
 
-$('reset').addEventListener('click', () => { load(defaults); calc(); save(); });
+$('days').addEventListener('click', e => {
+  const act = e.target.dataset.act;
+  if (!act) return;
+  const card = e.target.closest('.day'), i = +card.dataset.i;
+  if (act === 'remove') {
+    days.splice(i, 1);
+    render();
+  } else {
+    days[i].people = String(Math.max(1, num(days[i].people) + (act === 'plus' ? 1 : -1)));
+    card.querySelector('[data-f="people"]').value = days[i].people;
+    calc();
+  }
+  save();
+});
+
+// Neuer Tag übernimmt die Werte vom letzten Tag, meist ändert sich nur das Ende
+$('add').addEventListener('click', () => {
+  days.push({ ...days[days.length - 1] });
+  render(); save();
+  $('days').lastElementChild.scrollIntoView({ behavior: 'smooth', block: 'start' });
+});
+
+$('reset').addEventListener('click', () => { days = [{ ...defaults }]; render(); save(); });
 
 $('copy').addEventListener('click', async () => {
   const btn = $('copy');
@@ -268,7 +336,7 @@ $('copy').addEventListener('click', async () => {
   setTimeout(() => { btn.textContent = 'Ergebnis kopieren'; }, 1500);
 });
 
-calc();
+render();
 
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
   navigator.serviceWorker.register('sw.js').catch(e => console.warn('Service Worker', e));
