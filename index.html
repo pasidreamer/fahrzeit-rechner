@@ -104,6 +104,7 @@
   }
   .big.work { color: var(--work); }
   .big.drive { color: var(--drive); }
+  .big.night { color: var(--accent); grid-column: 1 / -1; }
   .big .name { font-size: .85rem; font-weight: 600; }
   .big .value { font-size: 2rem; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.15; }
   .big .dec { font-size: .85rem; color: var(--muted); }
@@ -138,6 +139,11 @@
           <div class="name">Fahrzeit total</div>
           <div class="value" id="driveTotal"></div>
           <div class="dec" id="driveTotalDec"></div>
+        </div>
+        <div class="big night" id="nightBox" hidden>
+          <div class="name">🌙 davon Nachtarbeit total (23–06 Uhr)</div>
+          <div class="value" id="nightTotal"></div>
+          <div class="dec" id="nightTotalDec"></div>
         </div>
       </div>
       <table id="detail"></table>
@@ -268,21 +274,28 @@ function calc() {
   $('workTotalDec').textContent = dec(work);
   $('driveTotal').textContent = hm(drive);
   $('driveTotalDec').textContent = dec(drive);
+  $('nightBox').hidden = !night;
+  $('nightTotal').textContent = hm(night);
+  $('nightTotalDec').textContent = dec(night) +
+    (many ? ' über alle Tage' : ' · ' + hm(res[0].nightOne) + ' pro Person');
 
   const rows = [];
   if (many) {
     rows.push('<tr><th></th><th>Arbeit</th><th>Fahrt</th></tr>');
     res.forEach((r, i) => rows.push(
       '<tr><td>Tag ' + (i + 1) + '<small>' + persons(r.people) + ' · je ' + hm(r.workOne) + ' Arbeit, ' + hm(r.driveOne) + ' Fahrt' +
-      (r.nightOne ? ', davon ' + hm(r.nightOne) + ' Nacht' : '') + '</small></td>' +
+      (r.nightOne ? ', davon ' + hm(r.nightOne) + ' Nacht (alle: ' + hm(r.night) + ')' : '') + '</small></td>' +
       '<td>' + hm(r.work) + '</td><td>' + hm(r.drive) + '</td></tr>'));
     rows.push('<tr class="sum"><td>Total</td><td>' + hm(work) + '</td><td>' + hm(drive) + '</td></tr>');
-    if (night) rows.push('<tr><td>davon Nachtarbeit' + nightText + '</td><td>' + hm(night) + '</td><td></td></tr>');
+    if (night) rows.push('<tr><td>davon Nachtarbeit total' + nightText + '</td><td>' + hm(night) + '</td><td></td></tr>');
     rows.push('<tr><td>Stunden total (Arbeit + Fahrt)</td><td colspan="2">' + hm(work + drive) + '</td></tr>');
   } else {
     const r = res[0];
     rows.push('<tr><td>Arbeitszeit pro Person</td><td>' + hm(r.workOne) + '</td></tr>');
-    if (r.nightOne) rows.push('<tr><td>davon Nachtarbeit pro Person' + nightText + '</td><td>' + hm(r.nightOne) + '</td></tr>');
+    if (r.nightOne) {
+      rows.push('<tr><td>davon Nachtarbeit pro Person' + nightText + '</td><td>' + hm(r.nightOne) + '</td></tr>');
+      rows.push('<tr><td>davon Nachtarbeit total (alle Personen)</td><td>' + hm(r.night) + '</td></tr>');
+    }
     rows.push('<tr><td>Fahrzeit pro Person (hin + zurück)</td><td>' + hm(r.driveOne) + '</td></tr>');
     rows.push('<tr><td>Anwesenheit pro Person</td><td>' + hm(r.span) + (r.pause ? ' (inkl. ' + r.pause + ' Min Pause)' : '') + '</td></tr>');
     rows.push('<tr><td>Stunden total (alle Personen)</td><td>' + hm(work + drive) + '</td></tr>');
